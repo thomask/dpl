@@ -13,8 +13,8 @@ module DPL
           write_netrc if git_remote.start_with?("https://")
           log "git --version"
           context.shell "git --version"
-          log "GIT_TRACE_PACKET=1 GIT_TRACE=1 GIT_CURL_VERBOSE=1 git push #{git_remote} HEAD:refs/heads/master -f"
-          context.shell "GIT_TRACE_PACKET=1 GIT_TRACE=1 GIT_CURL_VERBOSE=1 git push #{git_remote} HEAD:refs/heads/master -f"
+          log "git push #{git_remote} HEAD:refs/heads/master -f"
+          context.shell "git push #{git_remote} HEAD:refs/heads/master -f"
         end
 
         def write_netrc
