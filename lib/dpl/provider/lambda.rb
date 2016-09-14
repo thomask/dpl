@@ -9,7 +9,7 @@ module DPL
       requires 'rubyzip', load: 'zip'
 
       def lambda
-        @lambda ||= ::Aws::LambdaPreview::Client.new(lambda_options)
+        @lambda ||= ::Aws::Lambda::Client.new(lambda_options)
       end
 
       def lambda_options
@@ -21,26 +21,37 @@ module DPL
 
       def push_app
         # Options defined at
-        #   https://docs.aws.amazon.com/sdkforruby/api/Aws/LambdaPreview/Client.html
+        #   https://docs.aws.amazon.com/sdkforruby/api/Aws/Lambda/Client.html
         #   https://docs.aws.amazon.com/lambda/latest/dg/API_CreateFunction.html
-        response = lambda.upload_function({
+        zip = function_zip.read
+
+        response =  lambda.update_function_code({
+          function_name:  options[:name] || option(:function_name),
+          zip_file:       zip
+        })
+
+        log "Updated lambda: #{response.function_name}."
+
+      rescue ::Aws::Lambda::Errors::ResourceNotFoundException => exception
+        response = lambda.create_function({
           function_name:  options[:name]           || option(:function_name),
           description:    options[:description]    || default_description,
           timeout:        options[:timeout]        || default_timeout,
           memory_size:    options[:memory_size]    || deafult_memory_size,
           role:           option(:role),
           handler:        handler,
-          function_zip:   function_zip,
-          runtime:        options[:runtime]        || default_runtime,
-          mode:           default_mode,
+          code:           {
+                            zip_file:   zip
+                          },
+          runtime:        options[:runtime]        || default_runtime
         })
 
-        log "Uploaded lambda: #{response.function_name}."
-      rescue ::Aws::LambdaPreview::Errors::ServiceException => exception
+        log "Created lambda: #{response.function_name}."
+      rescue ::Aws::Lambda::Errors::AccessDeniedException => exception
         error(exception.message)
-      rescue ::Aws::LambdaPreview::Errors::InvalidParameterValueException => exception
+      rescue ::Aws::Lambda::Errors::ServiceException => exception
         error(exception.message)
-      rescue ::Aws::LambdaPreview::Errors::ResourceNotFoundException => exception
+      rescue ::Aws::Lambda::Errors::InvalidParameterValueException => exception
         error(exception.message)
       end
 
@@ -109,10 +120,6 @@ module DPL
 
       def default_runtime
         'nodejs'
-      end
-
-      def default_mode
-        'event'
       end
 
       def default_timeout
